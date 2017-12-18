@@ -6,14 +6,8 @@ import (
 	"ocell/nkebatch/lib"
 )
 
-type config struct {
-	Buf       []byte                `json:"buffer"`
-	Labelsize uint                  `json:"labelsize"`
-	Series    []nkebatch.SerieParam `json:"series"`
-}
-
 // Init series
-func initFromFile(path string, cfg *config, series *nkebatch.NkeSeries) (err error) {
+func initFromFile(path string, cfg *nkebatch.Config, series *nkebatch.NkeSeries) (err error) {
 
 	raw, err := ioutil.ReadFile(path)
 
@@ -31,7 +25,7 @@ func initFromFile(path string, cfg *config, series *nkebatch.NkeSeries) (err err
 }
 
 func main() {
-	var cfg config
+	var cfg nkebatch.Config
 	var theseries nkebatch.NkeSeries
 
 	err := initFromFile("../input/test.json", &cfg, &theseries)

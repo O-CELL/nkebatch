@@ -41,6 +41,13 @@ type NkeSeries struct {
 	labelsize         uint
 }
 
+// Config ...
+type Config struct {
+	Buf       []byte       `json:"buffer"`
+	Labelsize uint         `json:"labelsize"`
+	Series    []SerieParam `json:"series"`
+}
+
 // Initialize ...
 func Initialize(series *NkeSeries, labelsize uint, params []SerieParam, blog bool) {
 
