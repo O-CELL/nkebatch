@@ -2,4 +2,4 @@ ctl/main
 ctl/debug
 .vscode/launch.json
 test/debug.test
-test/test.json
+input/test.json
