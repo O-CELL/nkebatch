@@ -1,0 +1,14 @@
+{
+	"buffer": [38,21,0,32,224,96,1,215,30,0,0,160,101,15],
+    "labelsize": 1,
+    "series":
+	[{
+	"tag": 0,
+	"resolution": 1,
+	"type": 10
+    },{
+	"tag": 1,
+	"resolution": 100,
+	"type": 6
+    }]
+}  
