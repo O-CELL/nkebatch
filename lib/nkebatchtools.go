@@ -143,8 +143,15 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = (*theseries).Series[serieindex].Samples[sampleindex].Samplef + (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
 		}
 	} else {
-		if blog {
-			log.Print("no table coding not supported \n")
+		f := float32(math.Pow(2, float64(bi)))
+		if (*theseries).Series[serieindex].Params.Type != StFL {
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + uint32(f) - 1
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex-1].Sample - (*theseries).Series[serieindex].Samples[sampleindex].Sample
+		} else {
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = float32((*theseries).Series[serieindex].Samples[sampleindex].Sample) + f - 1.0
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef - (*theseries).Series[serieindex].Samples[sampleindex].Samplef
 		}
 	}
 }
