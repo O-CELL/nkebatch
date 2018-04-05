@@ -1,9 +1,12 @@
+//Copyright  © O-CELL 2018 contact@o-cell.fr
+//This source is released under the Apache License 2.0
+//which can be found in LICENSE.txt
 package main
 
 import (
 	"encoding/json"
 	"io/ioutil"
-	"ocell/nkebatch/lib"
+	"o-cell/nkebatch/lib"
 )
 
 // Init series
@@ -31,7 +34,7 @@ func main() {
 	err := initFromFile("../input/test.json", &cfg, &theseries)
 
 	if err == nil {
-		err = nkebatch.ProcessPayload(cfg.Buf, &theseries, false)
+		err = nkebatch.ProcessPayload(cfg.Buf, &theseries)
 
 		if err != nil {
 			err.Error()

@@ -1,3 +1,6 @@
+//Copyright  © O-CELL 2018 contact@o-cell.fr
+//This source is released under the Apache License 2.0
+//which can be found in LICENSE.txt
 package nkebatch
 
 import "log"
@@ -74,24 +77,23 @@ var dictionaries = []codebook{{symbol{2, 0x000}, // book0
 },
 }
 
-// but2HuffmanSizeAndIndex ... Get the pattern from bitstream
-func but2HuffmanSizeAndIndex(src []byte, startBit *uint, codingtable uint32, blog bool) uint8 {
+// buf2HuffmanSizeAndIndex ... Get the pattern from bitstream
+func buf2HuffmanSizeAndIndex(src []byte, startBit *uint, codingtable uint32) uint8 {
 	index := *startBit
 
 	for i := 2; i <= brHUFFSIZEMAX; i++ {
 		lbl := buf2HuffmanPattern(src, index, uint16(i))
-
-		result := getHuffmanIndexFromPattern(uint8(i), lbl, codingtable, blog)
-
+		result := getHuffmanIndexFromPattern(uint8(i), lbl, codingtable)
 		if result != -1 {
 			*startBit += uint(i)
 			return uint8(result)
 		}
 	}
-
 	return 0
 }
 
+//buf2HuffmanPattern retrieves nbbits from bit stream src starting at pos index and
+//returns an uint16 containing the requested bits
 func buf2HuffmanPattern(src []byte, index uint, nbbits uint16) uint16 {
 	var pattern uint16
 	var size = nbbits - 1
@@ -109,12 +111,12 @@ func buf2HuffmanPattern(src []byte, index uint, nbbits uint16) uint16 {
 		bittoread++
 		index++
 	}
-
 	return pattern
-
 }
 
-func getHuffmanIndexFromPattern(size uint8, lbl uint16, codingtable uint32, blog bool) int {
+//getHuffmanIndexFromPattern searches for label lbl of size size into Huffman coding table with index codingtable
+//returns the index of the pattern in the Huffman table or -1 if not found
+func getHuffmanIndexFromPattern(size uint8, lbl uint16, codingtable uint32) int {
 	for j := 0; j < nbHUFFELEMENT; j++ {
 		if (dictionaries[codingtable][j].Label == lbl) && (dictionaries[codingtable][j].Length == size) {
 			if blog {

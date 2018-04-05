@@ -2,7 +2,7 @@ package nkebatch
 
 import (
 	"fmt"
-	nkebatch "ocell/nkebatch/lib"
+	"o-cell/nkebatch/lib"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func decodeCheck(t *testing.T, config nkebatch.Config, expectedseries nkebatch.N
 	var theseries nkebatch.NkeSeries
 
 	nkebatch.Initialize(&theseries, config.Labelsize, config.Series, false)
-	err := nkebatch.ProcessPayload(config.Buf, &theseries, false)
+	err := nkebatch.ProcessPayload(config.Buf, &theseries)
 
 	if err == nil {
 		// Check the series time stamp

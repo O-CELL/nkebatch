@@ -1,3 +1,6 @@
+//Copyright  © O-CELL 2018 contact@o-cell.fr
+//This source is released under the Apache License 2.0
+//which can be found in LICENSE.txt
 package nkebatch
 
 import (
@@ -22,6 +25,7 @@ const (
 	StFL
 )
 
+//Maps each type to it's bits size
 var mapTypeSize = map[uint]uint{
 	StUndef: 0,
 	StBl:    1,
@@ -38,6 +42,7 @@ var mapTypeSize = map[uint]uint{
 	StFL:    32,
 }
 
+//getSeriesFromTag returns the index of the series in theseries with tag tag
 func getSeriesFromTag(tag uint32, theseries NkeSeries) int {
 	for i, ser := range theseries.Series {
 		if ser.Params.Tag == tag {
@@ -47,26 +52,23 @@ func getSeriesFromTag(tag uint32, theseries NkeSeries) int {
 	return -1
 }
 
-func decodeHeader(src []byte, theseries *NkeSeries, index *uint) error {
+//decodeHeader decodes the header from bitstream src starting at index index and stores the result in theseries
+func decodeHeader(src []byte, theseries *NkeSeries, index *uint)  {
 
-	b := byte(buf2Sample(StU8, src, index, 8))
-
+	b := byte(buf2Sample(src, index, 8))
 	(*theseries).withcts = (b & 2) >> 1
 	(*theseries).nosample = (b & 4) >> 2
 	(*theseries).batchReq = (b & 8) >> 3
 	(*theseries).nboftypeofmeasure = (b & 240) >> 4
-
-	return nil
 }
 
-// fetch data
-func buf2Sample(Type uint, src []byte, startBit *uint, nbBits uint) uint32 {
-	// Check function
+//buf2Sample returns an int32 of nbBits from bitstream src starting at bit startBit
+func buf2Sample(src []byte, startBit *uint, nbBits uint) uint32 {
 	var sample uint32
-	// per byte step
-	var nBytes = (nbBits-1)/8 + 1
-	var nBitsFromByte = nbBits % 8
 	var bitToRead uint16
+	// per byte step
+	nBytes := (nbBits-1)/8 + 1
+	nBitsFromByte := nbBits % 8
 	startbit := *startBit
 
 	// byte start
@@ -90,15 +92,29 @@ func buf2Sample(Type uint, src []byte, startBit *uint, nbBits uint) uint32 {
 	}
 
 	// Propagate the sign bit if 1 for Integer type
-	// TO DO STI4 STI24
+	// This is performed in expandSign by the caller when needed
 	*startBit += nbBits
 	return sample
 }
 
-func parseCoding(src []byte, theseries *NkeSeries, startBit *uint, current int, blog bool) {
+//expandSign propagates the sign bit up to position 32 for value if tp is StI4, StI8, StI16 or StI24
+func expandSign(value *uint32, tp uint) {
+	switch tp {
+	case StI4, StI8, StI16, StI24:
+		nbBits := mapTypeSize[tp]
+		if (*value) & ((uint32(1)<<(nbBits-1))) != 0 {
+			for i := nbBits ; i < 32; i++ {
+				(*value) |= (uint32(1) << (i-1))
+			}
+		}
+	}
+}
 
-	(*theseries).Series[current].codingType = buf2Sample(StU8, src, startBit, 2)
-	(*theseries).Series[current].codingTable = buf2Sample(StU8, src, startBit, 2)
+//parseCoding retrieves coding information for series at index current in theseries from bitstream src starting at startBit
+func parseCoding(src []byte, theseries *NkeSeries, startBit *uint, current int) {
+
+	(*theseries).Series[current].codingType = buf2Sample(src, startBit, 2)
+	(*theseries).Series[current].codingTable = buf2Sample(src, startBit, 2)
 
 	if blog {
 		log.Printf("coding type %d coding table %d\n", (*theseries).Series[current].codingType,
@@ -106,7 +122,9 @@ func parseCoding(src []byte, theseries *NkeSeries, startBit *uint, current int, 
 	}
 }
 
-func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex uint, blog bool) {
+//convertValue converts the value at sampleindex for series at seriesindex in theseries for huffman table index bi
+//Resulting value is stored in the sample .Sample and .Samplef accordingly
+func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex uint) {
 
 	if (*theseries).Series[serieindex].codingType == 0 {
 		f := float32(math.Pow(2, float64(bi-1)))
