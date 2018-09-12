@@ -11,6 +11,7 @@ const (
 	ERROUTOFRANGE
 	ERRNOTSUPPORTEDCTS
 	ERRHEADER
+	ERRINVALIDCONFIG
 )
 
 var mapErrorMessage = map[uint]string{
@@ -19,6 +20,7 @@ var mapErrorMessage = map[uint]string{
 	ERROUTOFRANGE:      "Out Of RANGE",
 	ERRNOTSUPPORTEDCTS: "CTS not supported",
 	ERRHEADER:          "Wrong Header",
+	ERRINVALIDCONFIG:	"Invalid configuration",
 }
 
 // Error ...

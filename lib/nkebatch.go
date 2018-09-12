@@ -90,7 +90,9 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) error {
 	// jump one reserved bit
 	buf2Sample(buffer, &index, 1)
 
-	measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getFirstMeasure)
+	if err := measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getFirstMeasure) ; err != nil {
+		return err
+	}
 
 	if theseries.nosample == 0 {
 		if theseries.commoncts != 0 {
@@ -103,7 +105,9 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) error {
 					log.Printf("Separate 	time stamp \n")
 				}
 			}
-			measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getSeparatedMeasures)
+			if err := measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getSeparatedMeasures) ; err != nil {
+				return err
+			}
 		}
 	}
 
@@ -115,17 +119,24 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) error {
 // convert types take an int and return a string value.
 type traverser func(src []byte, theseries *NkeSeries, index *uint, nbType int, currentser int, absTS *uint32, lastTS *uint32) int
 
-func measureTypeLoop(src []byte, theseries *NkeSeries, index *uint, absTS *uint32, lastTS *uint32, getMeasure traverser) {
+func measureTypeLoop(src []byte, theseries *NkeSeries, index *uint, absTS *uint32, lastTS *uint32, getMeasure traverser) error {
 	// First loop on measure type
 	for nbtype := 0; nbtype < int(theseries.nboftypeofmeasure); nbtype++ {
 		var tag = buf2Sample(src, index, (*theseries).labelsize)
 		// get current serie
 		currentser := getSeriesFromTag(tag, *theseries)
+		if currentser == -1 {
+			if blog {
+				log.Printf("INVALID CONFIG : Could not retrieve series for index %d, config claims %d series", nbtype, (*theseries).nboftypeofmeasure)
+			}
+			return &Error{ERRINVALIDCONFIG, mapErrorMessage[ERRINVALIDCONFIG]}
+		}
 		if blog {
 			log.Printf("current tag %d \n", (*theseries).Series[currentser].Params.Tag)
 		}
 		getMeasure(src, theseries, index, nbtype, currentser, absTS, lastTS)
 	}
+	return nil
 }
 
 //getFirstMeasure traverser specialised in retrieving the first measure of a series with index currentser
