@@ -35,13 +35,15 @@ type NkeSerie struct {
 type NkeSeries struct {
 	Series            []NkeSerie
 	Timestamp         uint32
+	commonTimeStamps  []uint32
+	refTimeStamp	  uint32
 	counter           uint32
 	withcts           byte
-	commoncts         uint32
 	nosample          byte
 	batchReq          byte
 	nboftypeofmeasure byte
 	labelsize         uint
+	nbSample		  uint32
 }
 
 // Config ...
@@ -95,15 +97,19 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) error {
 	}
 
 	if theseries.nosample == 0 {
-		if theseries.commoncts != 0 {
+		if theseries.withcts != 0 {
 			// common time stamp
-			return &Error{ERRNOTSUPPORTEDCTS, mapErrorMessage[ERRNOTSUPPORTEDCTS]}
+			if blog {
+				log.Printf("Common time stamp \n")
+			}
+			getCommonTimeStamps(buffer, theseries, &index, &lastTimestamp)
+			if err := measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getCommonTimeStampMeasures) ; err != nil {
+				return err
+			}
 		} else {
 			// separate time stamp
 			if blog {
-				if blog {
-					log.Printf("Separate 	time stamp \n")
-				}
+				log.Printf("Separate time stamp \n")
 			}
 			if err := measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getSeparatedMeasures) ; err != nil {
 				return err
@@ -146,12 +152,12 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 	// Get first timestamp (uncompressed)
 	if nbtype == 0 {
 		ts := buf2Sample(src, index, 32)
-
 		(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, NkeSample{Timestamp: ts})
 		if blog {
 			log.Printf("uncompressed timestamp %d \n", ts)
 		}
 		*absTS = ts
+		theseries.refTimeStamp = ts
 	} else {
 		// Get secondary time stamp
 		if blog {
@@ -176,10 +182,10 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 				f := math.Pow(2, float64(bi))
 				ts = newTS + uint32(f) - 1 + *absTS
 			} else {
-				if blog {
-					log.Printf("no proper huffman index non processed \n")
-				}
 				ts = *absTS
+				if blog {
+					log.Printf("no huffman index using refTimesamp %d for first sample of series %d\n", ts, currentser)
+				}
 			}
 		} else {
 			ts = buf2Sample(src, index, 32)
@@ -225,7 +231,6 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType int, currentser int, absTS *uint32, lastTS *uint32) int {
 
 	//number of samples
-
 	nbsamples := buf2Sample(src, index, mapTypeSize[StU8])
 	if blog {
 		log.Printf("nb samples %d \n", nbsamples)
@@ -262,20 +267,22 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 					newTS := buf2Sample(src, index, uint(bi))
 					f := math.Pow(2, float64(bi))
 					currentTS += newTS + uint32(f) - 1
+					if blog {
+						log.Printf("newTS: %d, f=%f\n", newTS, f)
+					}
 				}
 
 				if blog {
 					log.Printf("timestamp %d\n", currentTS)
 				}
-				// Append the new value
-				(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, NkeSample{Timestamp: currentTS})
-
 			} else {
 				if blog {
-					log.Printf("no proper huffman index non processed \n")
+					log.Printf("no proper huffman index reading TS from buffer for sample %d of series %d\n", j, currentser)
 				}
+				currentTS = buf2Sample(src, index, mapTypeSize[StU32])
 			}
-
+			// Append the new value
+			(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, NkeSample{Timestamp: currentTS})
 			if currentTS > *lastTS {
 				*lastTS = currentTS
 			}
@@ -286,7 +293,7 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 			if blog {
 				log.Printf("bi: %d\n", bi)
 			}
-
+			cur := len((*theseries).Series[currentser].Samples)
 			// from huffman index
 			if bi <= brHUFFMAXINDEXTABLE {
 				if bi > 0 {
@@ -295,23 +302,144 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 						log.Printf("raw: %d\n", value)
 					}
 					// get last samples
-					cur := len((*theseries).Series[currentser].Samples)
 					if cur > 0 {
 						(*theseries).Series[currentser].Samples[cur-1].Sample = value
 						convertValue(theseries, currentser, bi, uint(cur-1))
 					}
 				} else {
 					// get last samples
-					cur := len((*theseries).Series[currentser].Samples)
 					if cur > 1 {
 						(*theseries).Series[currentser].Samples[cur-1].Sample = (*theseries).Series[currentser].Samples[cur-2].Sample
 					}
 				}
 			} else {
-
-				if blog {
-					log.Printf("no proper huffman index non processed \n")
+				if cur > 0 {
+					(*theseries).Series[currentser].Samples[cur-1].Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+					if blog {
+						log.Printf("no proper huffman index, decoded full value %v for index %d of series %d\n", (*theseries).Series[currentser].Samples[cur-1].Sample, cur-1, currentser)
+					}
 				}
+			}
+		}
+	}
+	return 0
+}
+
+//getCommonTimeStamps will extract & store TimeStamps that will be used for all samples of each series at the same index
+//Used in common timestamp coding mode
+func getCommonTimeStamps(src []byte, theseries *NkeSeries, index *uint, lastTimeStamp *uint32) {
+	//number of samples
+	theseries.nbSample = buf2Sample(src, index, mapTypeSize[StU8])
+	if blog {
+		log.Printf("nb samples %d \n", theseries.nbSample)
+	}
+
+	if theseries.nbSample > 0 {
+		// get timestamp coding
+		tscoding := buf2Sample(src, index, 2)
+		if blog {
+			log.Printf(" TimeStamp Coding: %d\n", tscoding)
+		}
+		// extract common timestamps
+		theseries.commonTimeStamps = make([]uint32, theseries.nbSample)
+		for i := 0; i < int(theseries.nbSample); i++ {
+
+			bi := buf2HuffmanSizeAndIndex(src, index, tscoding)
+			if blog {
+				log.Printf("  i: %d bi: %d\n", i, bi)
+			}
+
+			// from huffman index
+			if bi <= brHUFFMAXINDEXTABLE {
+				if i == 0 {
+					theseries.commonTimeStamps[i] = (*theseries).refTimeStamp
+				} else {
+					if bi > 0 {
+						theseries.commonTimeStamps[i] = buf2Sample(src, index, uint(bi))
+						theseries.commonTimeStamps[i] += theseries.commonTimeStamps[i-1] + uint32(math.Pow(2, float64(bi))) - 1
+					} else {
+						theseries.commonTimeStamps[i] = theseries.commonTimeStamps[i-1]
+					}
+				}
+			} else {
+				theseries.commonTimeStamps[i] = buf2Sample(src, index, mapTypeSize[StU32])
+				if blog {
+					log.Printf("Common TS (no Huffman)[%d]=%d\n", i, theseries.commonTimeStamps[i])
+				}
+			}
+			if blog {
+				log.Printf("commonTimeStamps[%d]=%d\n", i, theseries.commonTimeStamps[i])
+			}
+		}
+		*lastTimeStamp = theseries.commonTimeStamps[theseries.nbSample-1]
+	} else {
+		if blog {
+			log.Printf("No samples to process, cannot proceed with commonTimeStamp")
+		}
+	}
+}
+
+
+//getCommonTimeStampMeasures traverser specialised in retrieving the subsequent measures of the series with index currentser
+//starting at index in buffer src with asbolute timestamp absTS and last time stamp lastTS
+//This is used when Separated TimeStamp coding is used (same TS for all samples at same index)
+func getCommonTimeStampMeasures(src []byte, theseries *NkeSeries, index *uint, nbType int, currentser int, absTS *uint32, lastTS *uint32) int {
+	firstNullDeltaValue := true
+	for i := 0; i < int(theseries.nbSample); i++ {
+		present := buf2Sample(src, index, 1)
+		if blog {
+			log.Printf("Sample[%d] present:%d\n", i, present)
+		}
+		if present == 0 {
+			continue
+		}
+
+		// Delta value
+		bi := buf2HuffmanSizeAndIndex(src, index, (*theseries).Series[currentser].codingTable)
+		if blog {
+			log.Printf("bi: %d\n", bi)
+		}
+		cur := len((*theseries).Series[currentser].Samples) - 1
+		//Store TimeStamp from table
+		sample := NkeSample{Timestamp: theseries.commonTimeStamps[i]}
+		cur += 1
+		// from huffman index
+		if bi <= brHUFFMAXINDEXTABLE {
+			if bi > 0 {
+				value := buf2Sample(src, index, uint(bi))
+				if blog {
+					log.Printf("raw: %d\n", value)
+				}
+				// get last samples
+				if cur >= 0 {
+					sample.Sample = value
+					(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, sample)
+					convertValue(theseries, currentser, bi, uint(cur))
+				} else {
+					if blog {
+						log.Printf("Cannot process sample %d of series %d, cur<0\n", i, currentser)
+					}
+				}
+			} else {
+				if firstNullDeltaValue { //Skip first sample that has already been created in getFirstMeasure
+					firstNullDeltaValue = false
+					continue
+				}
+				// copy last sample value
+				if cur > 0 {
+					sample.Sample = (*theseries).Series[currentser].Samples[cur-1].Sample
+					(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, sample)
+				} else {
+					if blog {
+						log.Printf("Cannot process sample %d of series %d, cur<=0\n", i, currentser)
+					}
+				}
+			}
+		} else {
+			sample.Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+			(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, sample)
+			if blog {
+				log.Printf("Non Huffman sample processed [%d]=%v\n", cur, (*theseries).Series[currentser].Samples[cur].Sample)
 			}
 		}
 	}
@@ -322,16 +450,22 @@ func getLastTimeStamp(src []byte, theseries *NkeSeries, index *uint, absTS *uint
 	// Time stamp of the sending
 	if *absTS == 0 {
 		(*theseries).Timestamp = buf2Sample(src, index, 32)
+		if blog {
+			log.Printf("last timestamp (from buffer) %d \n", (*theseries).Timestamp)
+		}
 	} else {
 		bi := buf2HuffmanSizeAndIndex(src, index, 1)
 		if blog {
-			log.Printf(" Final timestamp bi: %d\n", bi)
+			log.Printf("final timestamp bi: %d\n", bi)
 		}
 
 		// from huffman index
 		if bi <= brHUFFMAXINDEXTABLE {
 			if bi > 0 {
 				newTS := buf2Sample(src, index, uint(bi))
+				if blog {
+					log.Printf("last timestamp (RAW) %d \n", newTS)
+				}
 				f := math.Pow(2, float64(bi))
 				(*theseries).Timestamp = newTS + *lastTS + uint32(f) - 1
 			} else {
