@@ -75,11 +75,15 @@ func buf2Sample(src []byte, startBit *uint, nbBits uint) uint32 {
 	if (nBitsFromByte == 0) && (nBytes > 0) {
 		nBitsFromByte = 8
 	}
-
+	var idx int
 	for nBytes > 0 {
 		bitToRead = 0
 		for nBitsFromByte > 0 {
-			checkBit := (uint8(src[startbit>>3]) & uint8((1 << (startbit & 0x07))))
+			idx = int(startbit>>3)
+			if idx >= len(src) {
+				return sample //TODO properly handle error returning
+			}
+			checkBit := (uint8(src[idx]) & uint8((1 << (startbit & 0x07))))
 			if checkBit != 0 {
 				sample |= (1 << ((uint16(nBytes-1) * 8) + bitToRead))
 			}
@@ -130,46 +134,45 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 		f := float32(math.Pow(2, float64(bi-1)))
 		if (*theseries).Series[serieindex].Samples[sampleindex].Sample >= uint32(f) {
 			if (*theseries).Series[serieindex].Params.Type != StFL {
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 			} else {
-				fs := math.Float32frombits((*theseries).Series[serieindex].Samples[sampleindex].Sample)
-				fs = f * float32((*theseries).Series[serieindex].Params.Resolution)
-				(*theseries).Series[serieindex].Samples[sampleindex].Samplef = fs + (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef + 1.0 - f
+				(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32((*theseries).Series[serieindex].Params.Resolution)
+				(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
 			}
 		} else {
 			f := float32(math.Pow(2, float64(bi)))
 			if (*theseries).Series[serieindex].Params.Type != StFL {
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + 1 - uint32(f)
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (1 - uint32(f))
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 			} else {
-				(*theseries).Series[serieindex].Samples[sampleindex].Samplef = float32((*theseries).Series[serieindex].Samples[sampleindex].Sample) + 1.0 - f
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-				(*theseries).Series[serieindex].Samples[sampleindex].Samplef = (*theseries).Series[serieindex].Samples[sampleindex].Samplef + (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
+				(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (1.0 - f)
+				(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32((*theseries).Series[serieindex].Params.Resolution)
+				(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
 			}
 		}
 	} else if (*theseries).Series[serieindex].codingType == 1 {
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + uint32(f) - 1
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (uint32(f) - 1)
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 		} else {
-			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = float32((*theseries).Series[serieindex].Samples[sampleindex].Sample) + f - 1.0
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = (*theseries).Series[serieindex].Samples[sampleindex].Samplef + (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (f - 1.0)
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32 ((*theseries).Series[serieindex].Params.Resolution)
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
 		}
 	} else {
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample + uint32(f) - 1
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex-1].Sample - (*theseries).Series[serieindex].Samples[sampleindex].Sample
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample += uint32(f) - 1
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample -= (*theseries).Series[serieindex].Samples[sampleindex].Sample
 		} else {
-			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = float32((*theseries).Series[serieindex].Samples[sampleindex].Sample) + f - 1.0
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex].Sample * (*theseries).Series[serieindex].Params.Resolution
-			(*theseries).Series[serieindex].Samples[sampleindex].Samplef = (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef - (*theseries).Series[serieindex].Samples[sampleindex].Samplef
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (f - 1.0)
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32((*theseries).Series[serieindex].Params.Resolution)
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef -= (*theseries).Series[serieindex].Samples[sampleindex].Samplef
 		}
 	}
 }

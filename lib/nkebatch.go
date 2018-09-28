@@ -238,7 +238,7 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 
 	if nbsamples > 0 {
 		// get timestamp coding
-
+		isFloat := (theseries.Series[currentser].Params.Type == StFL) //Sample Type
 		tscoding := buf2Sample(src, index, 2)
 		if blog {
 			log.Printf(" TimeStamp Coding: %d\n", tscoding)
@@ -303,18 +303,29 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 					}
 					// get last samples
 					if cur > 0 {
-						(*theseries).Series[currentser].Samples[cur-1].Sample = value
+						if isFloat {
+							(*theseries).Series[currentser].Samples[cur-1].Samplef = float32(value)
+						}
+						(*theseries).Series[currentser].Samples[cur-1].Sample = value //Needed even if float because convertValue uses Sample even when type is float
 						convertValue(theseries, currentser, bi, uint(cur-1))
 					}
 				} else {
 					// get last samples
 					if cur > 1 {
-						(*theseries).Series[currentser].Samples[cur-1].Sample = (*theseries).Series[currentser].Samples[cur-2].Sample
+						if isFloat {
+							(*theseries).Series[currentser].Samples[cur-1].Samplef = (*theseries).Series[currentser].Samples[cur-2].Samplef
+						} else {
+							(*theseries).Series[currentser].Samples[cur-1].Sample = (*theseries).Series[currentser].Samples[cur-2].Sample
+						}
 					}
 				}
 			} else {
 				if cur > 0 {
-					(*theseries).Series[currentser].Samples[cur-1].Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+					if isFloat {
+						(*theseries).Series[currentser].Samples[cur-1].Samplef = float32(buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type]))
+					} else {
+						(*theseries).Series[currentser].Samples[cur-1].Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+					}
 					if blog {
 						log.Printf("no proper huffman index, decoded full value %v for index %d of series %d\n", (*theseries).Series[currentser].Samples[cur-1].Sample, cur-1, currentser)
 					}

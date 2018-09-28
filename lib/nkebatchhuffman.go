@@ -100,9 +100,13 @@ func buf2HuffmanPattern(src []byte, index uint, nbbits uint16) uint16 {
 	var bittoread uint16
 
 	// don t check the total size
-
+	var idx int
 	for nbbits > 0 {
-		checkBit := (uint8(src[index>>3]) & uint8((1 << (index & 0x07))))
+		idx = int(index>>3)
+		if idx >= len(src) {
+			return pattern //TODO properly handle error
+		}
+		checkBit := (uint8(src[idx]) & uint8((1 << (index & 0x07))))
 		if checkBit != 0 {
 			pattern |= (1 << (size - bittoread))
 		}
