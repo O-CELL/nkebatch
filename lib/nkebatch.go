@@ -190,6 +190,7 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 		} else {
 			ts = buf2Sample(src, index, 32)
 		}
+		*absTS = ts
 		(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, NkeSample{Timestamp: ts})
 	}
 
