@@ -133,9 +133,9 @@ func measureTypeLoop(src []byte, theseries *NkeSeries, index *uint, absTS *uint3
 		currentser := getSeriesFromTag(tag, *theseries)
 		if currentser == -1 {
 			if blog {
-				log.Printf("INVALID CONFIG : Could not retrieve series for index %d, config claims %d series", nbtype, (*theseries).nboftypeofmeasure)
+				log.Printf("Could not retrieve series for index %d, config claims %d series - skipping", nbtype, (*theseries).nboftypeofmeasure)
 			}
-			return &Error{ERRINVALIDCONFIG, mapErrorMessage[ERRINVALIDCONFIG]}
+			continue
 		}
 		if blog {
 			log.Printf("current tag %d \n", (*theseries).Series[currentser].Params.Tag)
