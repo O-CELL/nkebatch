@@ -3,7 +3,9 @@
 //which can be found in LICENSE.txt
 package nkebatch
 
-import "log"
+import (
+	"log"
+)
 
 // HUFFMAN TABLE
 const nbHUFFELEMENT = 16
@@ -121,6 +123,12 @@ func buf2HuffmanPattern(src []byte, index uint, nbbits uint16) uint16 {
 //getHuffmanIndexFromPattern searches for label lbl of size size into Huffman coding table with index codingtable
 //returns the index of the pattern in the Huffman table or -1 if not found
 func getHuffmanIndexFromPattern(size uint8, lbl uint16, codingtable uint32) int {
+	if int(codingtable) >= len(dictionaries) {
+		if blog {
+			log.Printf("Invalid coding table id %d", codingtable)
+		}
+		return -1
+	}
 	for j := 0; j < nbHUFFELEMENT; j++ {
 		if (dictionaries[codingtable][j].Label == lbl) && (dictionaries[codingtable][j].Length == size) {
 			if blog {
