@@ -4,6 +4,7 @@
 package nkebatch
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -80,18 +81,21 @@ var dictionaries = []codebook{{symbol{2, 0x000}, // book0
 }
 
 // buf2HuffmanSizeAndIndex ... Get the pattern from bitstream
-func buf2HuffmanSizeAndIndex(src []byte, startBit *uint, codingtable uint32) uint8 {
+func buf2HuffmanSizeAndIndex(src []byte, startBit *uint, codingtable uint32) (uint8, error) {
 	index := *startBit
 
 	for i := 2; i <= brHUFFSIZEMAX; i++ {
 		lbl := buf2HuffmanPattern(src, index, uint16(i))
-		result := getHuffmanIndexFromPattern(uint8(i), lbl, codingtable)
-		if result != -1 {
-			*startBit += uint(i)
-			return uint8(result)
+		if result, err := getHuffmanIndexFromPattern(uint8(i), lbl, codingtable) ; err == nil {
+			if result != -1 {
+				*startBit += uint(i)
+				return uint8(result), nil
+			}
+		} else {
+			return 0, err
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 //buf2HuffmanPattern retrieves nbbits from bit stream src starting at pos index and
@@ -122,20 +126,20 @@ func buf2HuffmanPattern(src []byte, index uint, nbbits uint16) uint16 {
 
 //getHuffmanIndexFromPattern searches for label lbl of size size into Huffman coding table with index codingtable
 //returns the index of the pattern in the Huffman table or -1 if not found
-func getHuffmanIndexFromPattern(size uint8, lbl uint16, codingtable uint32) int {
+func getHuffmanIndexFromPattern(size uint8, lbl uint16, codingtable uint32) (idx int, err error) {
 	if int(codingtable) >= len(dictionaries) {
 		if blog {
 			log.Printf("Invalid coding table id %d", codingtable)
 		}
-		return -1
+		return -1, fmt.Errorf("invalid coding table id %d", codingtable)
 	}
 	for j := 0; j < nbHUFFELEMENT; j++ {
 		if (dictionaries[codingtable][j].Label == lbl) && (dictionaries[codingtable][j].Length == size) {
 			if blog {
 				log.Printf("label %d size %d \n", lbl, size)
 			}
-			return j
+			return j, nil
 		}
 	}
-	return -1
+	return -1, nil
 }
