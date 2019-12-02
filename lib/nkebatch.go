@@ -13,14 +13,14 @@ import (
 // NkeSample ...
 type NkeSample struct {
 	Timestamp uint32
-	Sample    uint32
+	Sample    int32
 	Samplef   float32
 }
 
 // SerieParam ...
 type SerieParam struct {
 	Tag        uint32 `json:"tag"`
-	Resolution uint32 `json:"resolution"`
+	Resolution int32  `json:"resolution"`
 	Type       uint   `json:"type"`
 }
 
@@ -37,14 +37,14 @@ type NkeSeries struct {
 	Series            []NkeSerie
 	Timestamp         uint32
 	commonTimeStamps  []uint32
-	refTimeStamp	  uint32
+	refTimeStamp      uint32
 	counter           uint32
 	withcts           byte
 	nosample          byte
 	batchReq          byte
 	nboftypeofmeasure byte
 	labelsize         uint
-	nbSample		  uint32
+	nbSample          uint32
 }
 
 // Config ...
@@ -82,8 +82,8 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 	var index uint
 	var absTimestamp, lastTimestamp uint32
 
-	defer func () {
-		if r := recover() ; r != nil {
+	defer func() {
+		if r := recover(); r != nil {
 			if blog {
 				log.Printf("Recovered from panic : %v", r)
 			}
@@ -102,7 +102,7 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 	// jump one reserved bit
 	buf2Sample(buffer, &index, 1)
 
-	if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getFirstMeasure) ; err != nil {
+	if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getFirstMeasure); err != nil {
 		return
 	}
 
@@ -112,10 +112,10 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 			if blog {
 				log.Printf("Common time stamp \n")
 			}
-			if err = getCommonTimeStamps(buffer, theseries, &index, &lastTimestamp) ; err != nil {
+			if err = getCommonTimeStamps(buffer, theseries, &index, &lastTimestamp); err != nil {
 				return
 			}
-			if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getCommonTimeStampMeasures) ; err != nil {
+			if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getCommonTimeStampMeasures); err != nil {
 				return
 			}
 		} else {
@@ -123,13 +123,13 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 			if blog {
 				log.Printf("Separate time stamp \n")
 			}
-			if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getSeparatedMeasures) ; err != nil {
+			if err = measureTypeLoop(buffer, theseries, &index, &absTimestamp, &lastTimestamp, getSeparatedMeasures); err != nil {
 				return
 			}
 		}
 	}
 
-	if err = getLastTimeStamp(buffer, theseries, &index, &absTimestamp, &lastTimestamp) ; err != nil {
+	if err = getLastTimeStamp(buffer, theseries, &index, &absTimestamp, &lastTimestamp); err != nil {
 		return fmt.Errorf("failed to decode lastTimeStamp, invalid frame : %w", err)
 	}
 
@@ -137,7 +137,7 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 }
 
 // convert types take an int and return a string value.
-type traverser func(src []byte, theseries *NkeSeries, index *uint, nbType int, currentser int, absTS *uint32, lastTS *uint32)  error
+type traverser func(src []byte, theseries *NkeSeries, index *uint, nbType int, currentser int, absTS *uint32, lastTS *uint32) error
 
 func measureTypeLoop(src []byte, theseries *NkeSeries, index *uint, absTS *uint32, lastTS *uint32, getMeasure traverser) error {
 	// First loop on measure type
@@ -154,7 +154,7 @@ func measureTypeLoop(src []byte, theseries *NkeSeries, index *uint, absTS *uint3
 		if blog {
 			log.Printf("current tag %d \n", (*theseries).Series[currentser].Params.Tag)
 		}
-		if  err := getMeasure(src, theseries, index, nbtype, currentser, absTS, lastTS) ; err != nil {
+		if err := getMeasure(src, theseries, index, nbtype, currentser, absTS, lastTS); err != nil {
 			return fmt.Errorf("failed to decode, invalid data : %w", err)
 		}
 	}
@@ -183,7 +183,7 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 		// Delta value
 		bi, err := buf2HuffmanSizeAndIndex(src, index, 1)
 		if err != nil {
-			return  fmt.Errorf("getFirstMeasure : invalid data :%w",err)
+			return fmt.Errorf("getFirstMeasure : invalid data :%w", err)
 		}
 		if blog {
 			log.Printf("getFirstMeasure bi: %d\n", bi)
@@ -218,15 +218,15 @@ func getFirstMeasure(src []byte, theseries *NkeSeries, index *uint, nbtype int, 
 	}
 
 	// Get measure (uncompressed)
-	(*theseries).Series[currentser].Samples[0].Sample = buf2Sample(src, index,
-		mapTypeSize[theseries.Series[currentser].Params.Type])
+	(*theseries).Series[currentser].Samples[0].Sample = int32(buf2Sample(src, index,
+		mapTypeSize[theseries.Series[currentser].Params.Type]))
 
 	if blog {
 		log.Printf("type  %d \n", mapTypeSize[(*theseries).Series[currentser].Params.Type])
 	}
 
 	if (*theseries).Series[currentser].Params.Type == StFL {
-		f := math.Float32frombits((*theseries).Series[currentser].Samples[0].Sample)
+		f := math.Float32frombits(uint32((*theseries).Series[currentser].Samples[0].Sample))
 		(*theseries).Series[currentser].Samples[0].Samplef = f
 		if blog {
 			log.Printf("First measure %f \n", f)
@@ -320,7 +320,7 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 			// from huffman index
 			if bi <= brHUFFMAXINDEXTABLE {
 				if bi > 0 {
-					value := buf2Sample(src, index, uint(bi))
+					value := int32(buf2Sample(src, index, uint(bi)))
 					if blog {
 						log.Printf("raw: %d\n", value)
 					}
@@ -347,7 +347,7 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 					if isFloat {
 						(*theseries).Series[currentser].Samples[cur-1].Samplef = float32(buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type]))
 					} else {
-						(*theseries).Series[currentser].Samples[cur-1].Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+						(*theseries).Series[currentser].Samples[cur-1].Sample = int32(buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type]))
 					}
 					if blog {
 						log.Printf("no proper huffman index, decoded full value %v for index %d of series %d\n", (*theseries).Series[currentser].Samples[cur-1].Sample, cur-1, currentser)
@@ -417,7 +417,6 @@ func getCommonTimeStamps(src []byte, theseries *NkeSeries, index *uint, lastTime
 	return nil
 }
 
-
 //getCommonTimeStampMeasures traverser specialised in retrieving the subsequent measures of the series with index currentser
 //starting at index in buffer src with asbolute timestamp absTS and last time stamp lastTS
 //This is used when Separated TimeStamp coding is used (same TS for all samples at same index)
@@ -447,7 +446,7 @@ func getCommonTimeStampMeasures(src []byte, theseries *NkeSeries, index *uint, n
 		// from huffman index
 		if bi <= brHUFFMAXINDEXTABLE {
 			if bi > 0 {
-				value := buf2Sample(src, index, uint(bi))
+				value := int32(buf2Sample(src, index, uint(bi)))
 				if blog {
 					log.Printf("raw: %d\n", value)
 				}
@@ -477,7 +476,7 @@ func getCommonTimeStampMeasures(src []byte, theseries *NkeSeries, index *uint, n
 				}
 			}
 		} else {
-			sample.Sample = buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type])
+			sample.Sample = int32(buf2Sample(src, index, mapTypeSize[(*theseries).Series[currentser].Params.Type]))
 			(*theseries).Series[currentser].Samples = append((*theseries).Series[currentser].Samples, sample)
 			if blog {
 				log.Printf("Non Huffman sample processed [%d]=%v\n", cur, (*theseries).Series[currentser].Samples[cur].Sample)

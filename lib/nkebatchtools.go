@@ -53,7 +53,7 @@ func getSeriesFromTag(tag uint32, theseries NkeSeries) int {
 }
 
 //decodeHeader decodes the header from bitstream src starting at index index and stores the result in theseries
-func decodeHeader(src []byte, theseries *NkeSeries, index *uint)  {
+func decodeHeader(src []byte, theseries *NkeSeries, index *uint) {
 
 	b := byte(buf2Sample(src, index, 8))
 	(*theseries).withcts = (b & 2) >> 1
@@ -79,11 +79,11 @@ func buf2Sample(src []byte, startBit *uint, nbBits uint) uint32 {
 	for nBytes > 0 {
 		bitToRead = 0
 		for nBitsFromByte > 0 {
-			idx = int(startbit>>3)
+			idx = int(startbit >> 3)
 			if idx >= len(src) {
 				return sample //TODO properly handle error returning
 			}
-			checkBit := (uint8(src[idx]) & uint8((1 << (startbit & 0x07))))
+			checkBit := (src[idx] & uint8((1 << (startbit & 0x07))))
 			if checkBit != 0 {
 				sample |= (1 << ((uint16(nBytes-1) * 8) + bitToRead))
 			}
@@ -102,14 +102,12 @@ func buf2Sample(src []byte, startBit *uint, nbBits uint) uint32 {
 }
 
 //expandSign propagates the sign bit up to position 32 for value if tp is StI4, StI8, StI16 or StI24
-func expandSign(value *uint32, tp uint) {
+func expandSign(value *int32, tp uint) {
 	switch tp {
 	case StI4, StI8, StI16, StI24:
 		nbBits := mapTypeSize[tp]
-		if (*value) & ((uint32(1)<<(nbBits-1))) != 0 {
-			for i := nbBits ; i < 32; i++ {
-				(*value) |= (uint32(1) << (i-1))
-			}
+		if (*value)&(0x1<<(nbBits-1)) != 0 {
+			(*value) = int32(int64(*value) - (int64(1) << nbBits))
 		}
 	}
 }
@@ -132,7 +130,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 
 	if (*theseries).Series[serieindex].codingType == 0 {
 		f := float32(math.Pow(2, float64(bi-1)))
-		if (*theseries).Series[serieindex].Samples[sampleindex].Sample >= uint32(f) {
+		if (*theseries).Series[serieindex].Samples[sampleindex].Sample >= int32(f) {
 			if (*theseries).Series[serieindex].Params.Type != StFL {
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
@@ -143,7 +141,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 		} else {
 			f := float32(math.Pow(2, float64(bi)))
 			if (*theseries).Series[serieindex].Params.Type != StFL {
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (1 - uint32(f))
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (1 - int32(f))
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 			} else {
@@ -155,18 +153,18 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 	} else if (*theseries).Series[serieindex].codingType == 1 {
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (uint32(f) - 1)
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (int32(f) - 1)
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 		} else {
 			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (f - 1.0)
-			(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32 ((*theseries).Series[serieindex].Params.Resolution)
+			(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32((*theseries).Series[serieindex].Params.Resolution)
 			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (*theseries).Series[serieindex].Samples[sampleindex-1].Samplef
 		}
 	} else {
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample += uint32(f) - 1
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample += int32(f) - 1
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex-1].Sample - (*theseries).Series[serieindex].Samples[sampleindex].Sample
 		} else {
