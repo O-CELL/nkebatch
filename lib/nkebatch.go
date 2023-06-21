@@ -279,6 +279,12 @@ func getSeparatedMeasures(src []byte, theseries *NkeSeries, index *uint, nbType 
 			// from huffman index
 			if bi <= brHUFFMAXINDEXTABLE {
 				currentIndex := len((*theseries).Series[currentser].Samples) - 1
+				if currentIndex < 0 {
+					if blog {
+						log.Printf("No samples found while decoding - skipping series with TAG %d", (*theseries).Series[currentser].Params.Tag)
+					}
+					return nil
+				}
 				if blog {
 					log.Printf("serie %d length %d\n", currentser, len((*theseries).Series[currentser].Samples))
 				}
