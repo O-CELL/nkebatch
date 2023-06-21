@@ -54,6 +54,16 @@ type Config struct {
 	Series    []SerieParam `json:"series"`
 }
 
+// NKEPanicError reports a Panic in NKE Batch decoding library
+type NKEPanicError struct {
+	msg string
+}
+
+// NKEPanicError method to implement the Error interface for NKEPanicError
+func (e NKEPanicError) Error() string {
+	return e.msg
+}
+
 var blog bool = false //Debug flag
 
 // Initialize ...
@@ -69,7 +79,6 @@ func Initialize(series *NkeSeries, labelsize uint, params []SerieParam, debug bo
 			log.Printf("Label %d \n", param.Tag)
 		}
 	}
-
 }
 
 // Dump result
@@ -87,7 +96,7 @@ func ProcessPayload(buffer []byte, theseries *NkeSeries) (err error) {
 			if blog {
 				log.Printf("Recovered from panic : %v", r)
 			}
-			err = fmt.Errorf("failed to process frame %s (panic) : %v", hex.EncodeToString(buffer), r)
+			err = NKEPanicError {fmt.Sprintf("panic : failed to process frame %s - %v", hex.EncodeToString(buffer), r)}
 		}
 	}()
 
