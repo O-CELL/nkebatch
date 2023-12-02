@@ -20,7 +20,7 @@ type NkeSample struct {
 // SerieParam ...
 type SerieParam struct {
 	Tag        uint32 `json:"tag"`
-	Resolution int32  `json:"resolution"`
+	Resolution float64  `json:"resolution"`
 	Type       uint   `json:"type"`
 }
 

@@ -132,7 +132,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 		f := float32(math.Pow(2, float64(bi-1)))
 		if (*theseries).Series[serieindex].Samples[sampleindex].Sample >= int32(f) {
 			if (*theseries).Series[serieindex].Params.Type != StFL {
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= int32((*theseries).Series[serieindex].Params.Resolution)
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 			} else {
 				(*theseries).Series[serieindex].Samples[sampleindex].Samplef *= float32((*theseries).Series[serieindex].Params.Resolution)
@@ -142,7 +142,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 			f := float32(math.Pow(2, float64(bi)))
 			if (*theseries).Series[serieindex].Params.Type != StFL {
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (1 - int32(f))
-				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+				(*theseries).Series[serieindex].Samples[sampleindex].Sample *= int32((*theseries).Series[serieindex].Params.Resolution)
 				(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 			} else {
 				(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (1.0 - f)
@@ -154,7 +154,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (int32(f) - 1)
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= int32((*theseries).Series[serieindex].Params.Resolution)
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample += (*theseries).Series[serieindex].Samples[sampleindex-1].Sample
 		} else {
 			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (f - 1.0)
@@ -165,7 +165,7 @@ func convertValue(theseries *NkeSeries, serieindex int, bi uint8, sampleindex ui
 		f := float32(math.Pow(2, float64(bi)))
 		if (*theseries).Series[serieindex].Params.Type != StFL {
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample += int32(f) - 1
-			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= (*theseries).Series[serieindex].Params.Resolution
+			(*theseries).Series[serieindex].Samples[sampleindex].Sample *= int32((*theseries).Series[serieindex].Params.Resolution)
 			(*theseries).Series[serieindex].Samples[sampleindex].Sample = (*theseries).Series[serieindex].Samples[sampleindex-1].Sample - (*theseries).Series[serieindex].Samples[sampleindex].Sample
 		} else {
 			(*theseries).Series[serieindex].Samples[sampleindex].Samplef += (f - 1.0)
